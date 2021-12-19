@@ -1,19 +1,19 @@
 #include "Adafruit_Si7021.h"
 #include "uMQTTBroker.h"
+#include <../../Config.h>
 #include <Adafruit_SSD1306.h>
 #include <Adafruit_Sensor.h>
 #include <ESP8266WiFi.h>
 #include <OneButton.h>
 #include <SPI.h>
 #include <Wire.h>
-#include <../../Config.h>
 
 /*
  * Your WiFi config here
  */
 char ssid[] = WIFI_SSID; // your network SSID (name)
-char pass[] = WIFI_PW;     // your network password
-bool WiFiAP = false;                // Do yo want the ESP as AP?
+char pass[] = WIFI_PW;   // your network password
+bool WiFiAP = false;     // Do yo want the ESP as AP?
 
 long outdoorLastSeenMillis = 0;
 long outdoorUptimeMillis = 0;
@@ -238,8 +238,12 @@ void loop() {
             upTimeString = String((outdoorUptimeMillis / 1000) / 60) + "min";
         }
         long lastSeenSeconds = (millis() - outdoorLastSeenMillis) / 1000;
+        if (outdoorLastSeenMillis > 0) {
+            display.println(String(lastSeenSeconds) + "s ago, Up: " + upTimeString);
+        } else {
+            display.println("Not seen yet");
+        }
 
-        display.println(String(lastSeenSeconds) + "s ago, Up: " + upTimeString);
         int wifi = 100 - outdoorWifiRssi * -1;
         display.println("WLN " + String(wifi) + "% Bat " + String((int)outdoorBatteryPercent) + "% " + String(outdoorBatteryVoltage) + "V");
         display.println();

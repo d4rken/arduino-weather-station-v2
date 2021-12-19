@@ -161,7 +161,7 @@ void loop() {
     delay(1000);
 
     // Generate new data set for the struct
-    rtcDataStruct.millis = rtcDataStruct.millis + millis();
+    rtcDataStruct.millis = rtcDataStruct.millis + deepSleepMillis + millis();
     memcpy(rtcData.data, &rtcDataStruct, sizeof(rtcDataStruct));
 
     // Update CRC32 of data

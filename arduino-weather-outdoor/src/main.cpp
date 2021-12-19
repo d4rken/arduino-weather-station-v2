@@ -4,14 +4,15 @@
 #include <PubSubClient.h>
 #include <SPI.h>
 #include <Wire.h>
+#include <../../Config.h>
 
 //for LED status
 #include <Ticker.h>
 Ticker ticker;
 
-const char *SSID = "";
-const char *PSK = "";
-const char *MQTT_BROKER = "Weather-Station-Indoor.greenkingdom";
+const char *SSID = WIFI_SSID;
+const char *PSK = WIFI_PW;
+const char *MQTT_BROKER = MQTT_SERVER;
 
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -101,7 +102,7 @@ unsigned int lowest = 9000;
 char itoaBuf[64];
 char dtostrfBuf[64];
 
-const int deepSleepMillis = 5000;
+const int deepSleepMillis = 180000;
 
 void updateSystemStats() {
     long rssi = WiFi.RSSI();

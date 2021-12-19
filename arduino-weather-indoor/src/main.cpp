@@ -6,12 +6,13 @@
 #include <OneButton.h>
 #include <SPI.h>
 #include <Wire.h>
+#include <../../Config.h>
 
 /*
  * Your WiFi config here
  */
-char ssid[] = ""; // your network SSID (name)
-char pass[] = "";     // your network password
+char ssid[] = WIFI_SSID; // your network SSID (name)
+char pass[] = WIFI_PW;     // your network password
 bool WiFiAP = false;                // Do yo want the ESP as AP?
 
 long outdoorLastSeenMillis = 0;

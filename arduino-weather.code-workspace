@@ -7,6 +7,9 @@
 		{
 			"name": "Outdoor",
 			"path": "arduino-weather-outdoor"
+		},
+		{
+			"path": "."
 		}
 	],
 	"settings": {

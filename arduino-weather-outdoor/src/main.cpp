@@ -72,16 +72,10 @@ void setup() {
     }
 
     Serial.println("Connecting to WiFi" + String(SSID));
-
+    WiFi.setAutoReconnect(true);
+    WiFi.persistent(true);
     WiFi.hostname("Weather-Station-Outdoor");
     WiFi.begin(SSID, PSK);
-
-    while (WiFi.status() != WL_CONNECTED) {
-        delay(100);
-    }
-
-    Serial.println("Connected, my IP is:");
-    Serial.println(WiFi.localIP());
 
     client.setServer(MQTT_BROKER, 1883);
 
@@ -102,7 +96,7 @@ unsigned int lowest = 9000;
 char itoaBuf[64];
 char dtostrfBuf[64];
 
-const int deepSleepMillis = 180000;
+int deepSleepMillis = 60000;
 
 void updateSystemStats() {
     long rssi = WiFi.RSSI();
@@ -112,8 +106,25 @@ void updateSystemStats() {
     unsigned int raw = analogRead(A0);
     client.publish("weather-station/outdoor1/battery/raw", itoa(raw, itoaBuf, 10));
 
-    if (raw < lowest)         lowest = raw;
+    if (raw < lowest) {
+        lowest = raw;
+    }
     float batPercent = lowest / 1024.0;
+    if (batPercent > 0.95) {
+        deepSleepMillis = deepSleepMillis * 0.25;
+    } else if (batPercent > 0.90) {
+        deepSleepMillis = deepSleepMillis * 0.50;
+    } else if (batPercent > 0.80) {
+        deepSleepMillis = deepSleepMillis * 1;
+    } else if (batPercent > 0.70) {
+        deepSleepMillis = deepSleepMillis * 2;
+    } else if (batPercent > 0.60) {
+        deepSleepMillis = deepSleepMillis * 3;
+    } else if (batPercent > 0.50) {
+        deepSleepMillis = deepSleepMillis * 5;
+    } else {
+        deepSleepMillis = deepSleepMillis * 10;
+    }
     client.publish("weather-station/outdoor1/battery/percent", dtostrf(batPercent * 100, 4, 3, dtostrfBuf));
 
     float batVoltage = batPercent * 4.1;
@@ -142,28 +153,56 @@ void updateSensor() {
 }
 
 void loop() {
-    if (!client.connected()) {
-        ticker.attach(0.6, tick);
-        while (!client.connected()) {
-            client.connect("Weather-Station-Outdoor");
-            delay(500);
+    bool wifiConnected = true;
+    int retryWifi = 0;
+    while (WiFi.status() != WL_CONNECTED) {
+        Serial.println("Connecting to WiFi...");
+        if (retryWifi > 10) {
+            wifiConnected = false;
+            break;
+        } else {
+            retryWifi++;
         }
-        ticker.detach();
-        digitalWrite(BUILTIN_LED, LOW);
+        delay(500);
     }
 
+    if(wifiConnected) {
+        Serial.println("Connected, my IP is:");
+        Serial.println(WiFi.localIP());
+    } else {
+        Serial.println("Failed to connect to WiFi");
+    }
+
+    bool mqttConnected = wifiConnected;
+    int retryMqtt = 0;
+    while (wifiConnected && !client.connected()) {
+        Serial.println("Connecting to MQTT broker...");
+        client.connect("Weather-Station-Outdoor");
+        if (retryMqtt > 10) {
+            mqttConnected = false;
+            break;
+        } else {
+            retryMqtt++;
+        }
+        delay(500);
+    }
+
+    if(mqttConnected) {
+        Serial.println("Connected to MQTT Broker");
+    } else {
+        Serial.println("Failed to connect to MQTT broker");
+    }
+
+    ticker.detach();
+    digitalWrite(BUILTIN_LED, LOW);
+
     updateSystemStats();
-
     updateSensor();
-
     client.loop();
-
-    delay(1000);
 
     // Generate new data set for the struct
     rtcDataStruct.millis = rtcDataStruct.millis + deepSleepMillis + millis();
     memcpy(rtcData.data, &rtcDataStruct, sizeof(rtcDataStruct));
-
     // Update CRC32 of data
     rtcData.crc32 = calculateCRC32((uint8_t *)&rtcData.data[0], sizeof(rtcData.data));
     // Write struct to RTC memory
@@ -175,7 +214,6 @@ void loop() {
     }
 
     unsigned long int actSleepTime = deepSleepMillis * 1000; //microseconds
-
     Serial.println("Going to sleep for " + String(deepSleepMillis) + "ms");
     ESP.deepSleep(actSleepTime);
 }

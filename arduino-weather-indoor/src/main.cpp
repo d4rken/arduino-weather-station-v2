@@ -110,23 +110,17 @@ void startWiFiClient() {
     Serial.println("Connecting to " + (String)ssid);
     WiFi.mode(WIFI_STA);
     WiFi.hostname("Weather-Station-Indoor");
+    WiFi.setAutoReconnect(true);
+    WiFi.persistent(true);
     WiFi.begin(ssid, pass);
 
     while (WiFi.status() != WL_CONNECTED) {
         delay(500);
         Serial.print(".");
     }
-    Serial.println("");
 
     Serial.println("WiFi connected");
     Serial.println("IP address: " + WiFi.localIP().toString());
-}
-
-void startWiFiAP() {
-    WiFi.mode(WIFI_AP);
-    WiFi.softAP(ssid, pass);
-    Serial.println("AP started");
-    Serial.println("IP address: " + WiFi.softAPIP().toString());
 }
 
 void setup() {
@@ -177,10 +171,7 @@ void setup() {
     display.println("Booting...");
     display.display();
 
-    if (WiFiAP)
-        startWiFiAP();
-    else
-        startWiFiClient();
+    startWiFiClient();
 
     Serial.println("Starting MQTT broker");
     myBroker.init();
@@ -194,6 +185,13 @@ bool enableHeater = false;
 void loop() {
     buttonA.tick();
     buttonB.tick();
+
+    if (WiFi.status() == WL_CONNECTED) {
+        Serial.println("Wifi is connected");
+    } else {
+        Serial.println("Wifi is not connected, attempting reconnect");
+        WiFi.reconnect();
+    }
 
     myBroker.publish("broker/clients/count", (String)myBroker.getClientCount());
     for (int i = 0; i < myBroker.getClientCount(); i++) {

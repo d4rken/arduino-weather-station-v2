@@ -74,7 +74,6 @@ void setup() {
 
     Serial.println("Connecting to WiFi" + String(SSID));
     WiFi.setAutoReconnect(true);
-    WiFi.persistent(true);
     WiFi.hostname("Weather-Station-Outdoor");
     WiFi.begin(SSID, PSK);
 
@@ -148,9 +147,13 @@ void updateSensor() {
     client.publish("weather-station/outdoor1/sensors/pressure/hPa", dtostrf(pressure, 4, 2, dtostrfBuf));
     Serial.println("Pressure = " + String(pressure) + "hpa");
 
-    //float altitude = bme.readAltitude(SEALEVELPRESSURE_HPA);
-    //client.publish("weather-station/outdoor1/sensors/pressure/altitude", dtostrf(altitude, 4, 2, dtostrfBuf));
-    //Serial.println("Approx. Altitude = " + String(altitude) + "m");
+    float altitude = bme.readAltitude(SEALEVELPRESSURE_HPA);
+    client.publish("weather-station/outdoor1/sensors/pressure/altitude", dtostrf(altitude, 4, 2, dtostrfBuf));
+    Serial.println("Approx. Altitude = " + String(altitude) + "m");
+
+    float seaLevelForAltitude = bme.seaLevelForAltitude(174.0,pressure);
+    client.publish("weather-station/outdoor1/sensors/pressure/seaLevelForAltitude", dtostrf(seaLevelForAltitude, 4, 2, dtostrfBuf));
+    Serial.println("Sea level for altitude = " + String(seaLevelForAltitude) + "hPa");
 }
 
 void loop() {
@@ -204,7 +207,26 @@ void loop() {
 
     updateSystemStats();
     updateSensor();
+
     client.loop();
+
+    delay(1000);
+
+    Serial.println("Data published, waiting for transmission...");
+    client.disconnect(); 
+    espClient.flush();
+
+    // wait until connection is closed completely
+    int delayCounter = 0;
+    while (client.state() != -1) {
+        delay(10);
+        if (delayCounter > 100) {
+            break;
+        } else {
+            delayCounter++;
+        }
+    }
+    Serial.println("Network flushed and disconnected, going to deep sleep...");
 
     // Generate new data set for the struct
     rtcDataStruct.millis = rtcDataStruct.millis + deepSleepMillis + millis();

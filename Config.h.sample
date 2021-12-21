@@ -4,5 +4,6 @@
 #define WIFI_SSID ""
 #define WIFI_PW ""
 #define MQTT_SERVER ""
+#define MQTT_SERVER_IP ""
 
 #endif

@@ -1,12 +1,11 @@
 #include "uMQTTBroker.h"
 #include <../../Config.h>
 #include <ESP8266WiFi.h>
+#include <gfxfont.h> 
+#include <Fonts/FreeSans12pt7b.h>
+#include <GxEPD2_BW.h>
 #include <SPI.h>
 #include <Wire.h>
-#include "epd1in54_V2.h"
-#include "epdpaint.h"
-#include <GxEPD2_BW.h>
-#include <Fonts/FreeSans12pt7b.h>
 
 /*
  * Your WiFi config here
@@ -71,8 +70,6 @@ public:
         //printClients();
     }
 
-    // Sample for the usage of the client info methods
-
     virtual void printClients() {
         for (int i = 0; i < getClientCount(); i++) {
             IPAddress addr;
@@ -90,7 +87,7 @@ myMQTTBroker myBroker;
 void startWiFiClient() {
     Serial.println("Connecting to " + (String)ssid);
     WiFi.mode(WIFI_STA);
-    WiFi.hostname("Weather-Station-Indoor2");
+    WiFi.hostname("Weather-Station-Indoor");
     WiFi.setAutoReconnect(true);
     WiFi.persistent(true);
     WiFi.begin(ssid, pass);
@@ -108,9 +105,16 @@ void setup() {
     Serial.begin(74880);
     Serial.println("Starting setup");
 
-  display.init();
-  display.setRotation(0);
-  display.setFullWindow();
+    display.init();
+    display.setRotation(3);
+    display.setFullWindow();
+    display.setFont(&FreeSans12pt7b);
+    display.setTextColor(GxEPD_BLACK);
+
+    display.fillScreen(GxEPD_WHITE);
+    display.setCursor(5, 60);
+    display.print("Booting...");
+    display.display(false);
 
     startWiFiClient();
 
@@ -120,35 +124,25 @@ void setup() {
     myBroker.subscribe("#");
 }
 
+int printHeight = 0;
 
-void updateHum(float humidity) {
-  char temp_string[] = {'0', '0', '\0'};
-  int16_t tbx, tby;
-  uint16_t tbw, tbh;
+void printLine(String str) {
+    int str_len = str.length() + 1;
+    char msg[str_len];
+    str.toCharArray(msg, str_len);
 
-  // Zahlen in String schreiben
-  dtostrf(humidity, 2, 0, temp_string);
+    int16_t tbx, tby;
+    uint16_t tbw, tbh;
+    display.getTextBounds(msg, 0, 0, &tbx, &tby, &tbw, &tbh);
 
-  // x und y = linke UNTERE Ecke (Grundlinie)
-  uint16_t x = 30;
-  uint16_t y = 112;
+    printHeight += 22;
+    display.setCursor(0, printHeight);
+    display.print(msg);
+}
 
-  // berechnet die Größe des Fensters
-  display.getTextBounds(temp_string, x, y, &tbx, &tby, &tbw, &tbh);
-  
-  display.setFont(&FreeSans12pt7b);
-  display.setTextColor(GxEPD_BLACK);
-
-  // benötigt die linke OBERE Ecke und Groesse
-  display.setPartialWindow(tbx, tby, tbw, tbh);
-
-  // Ausgabe
-  display.firstPage();
-  do {
-    display.fillScreen(GxEPD_WHITE);
-    display.setCursor(x, y);
-    display.print(temp_string);
-  } while (display.nextPage());
+void doDisplay() {
+    display.display();
+    printHeight = 0;
 }
 
 void loop() {
@@ -172,28 +166,33 @@ void loop() {
 
     myBroker.publish("broker/uptime", (String)millis());
 
-updateHum(23.0);
-  
-        //display.println("Outdoor station 1");
-        String upTimeString;
-        if (outdoorUptimeMillis > 86400000) {
-            upTimeString = String(outdoorUptimeMillis / 86400000) + "days";
-        } else {
-            upTimeString = String((outdoorUptimeMillis / 1000) / 60) + "min";
-        }
-        long lastSeenSeconds = (millis() - outdoorLastSeenMillis) / 1000;
-        if (outdoorLastSeenMillis > 0) {
-            //display.println(String(lastSeenSeconds) + "s ago, Up: " + upTimeString);
-        } else {
-            //display.println("Not seen yet");
-        }
+    display.fillScreen(GxEPD_WHITE);
+    printLine("Outdoor station 1");
+
+    String upTimeString;
+    if (outdoorUptimeMillis > 86400000) {
+        upTimeString = String(outdoorUptimeMillis / 86400000) + "days";
+    } else {
+        upTimeString = String((outdoorUptimeMillis / 1000) / 60) + "min";
+    }
+    long lastSeenSeconds = (millis() - outdoorLastSeenMillis) / 1000;
+    if (outdoorLastSeenMillis <= 0) {
+        printLine("Not seen yet.");
+    } else {
+        printLine(String(lastSeenSeconds) + "s ago (Up " + upTimeString + ")");
 
         int wifi = 100 - outdoorWifiRssi * -1;
-        //display.println("WLN " + String(wifi) + "% Bat " + String((int)outdoorBatteryPercent) + "% " + String(outdoorBatteryVoltage) + "V");
-        //display.println();
-        //display.println("Temperature " + String(outdoorSensorTempCelsus) + "C");
-        //display.println("Humidity " + String(outdoorSensorHumidityPercent) + "%");
-        //display.println("Barometer " + String(outdoorSensorPressurehPa) + "hPa");
+        printLine("Wifi: " + String(wifi) + "% (" + String(WiFi.RSSI()) + "%)");
+        printLine("Batt: " + String((int)outdoorBatteryPercent) + "% @ " + String(outdoorBatteryVoltage) + "V");
 
-    delay(1000);
+        printLine("");
+
+        printLine("Temp: " + String(outdoorSensorTempCelsus) + "C");
+        printLine("Humid: " + String(outdoorSensorHumidityPercent) + "%");
+        printLine("Bero: " + String(outdoorSensorPressurehPa) + "hPa");
+    }
+
+    doDisplay();
+
+    delay(30 * 1000);
 }

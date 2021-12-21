@@ -13,6 +13,7 @@ Ticker ticker;
 const char *SSID = WIFI_SSID;
 const char *PSK = WIFI_PW;
 const char *MQTT_BROKER = MQTT_SERVER;
+const char *MQTT_BROKER_IP = MQTT_SERVER_IP;
 
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -178,10 +179,15 @@ void loop() {
     while (wifiConnected && !client.connected()) {
         Serial.println("Connecting to MQTT broker...");
         client.connect("Weather-Station-Outdoor");
-        if (retryMqtt > 10) {
+        if (retryMqtt > 3) {
             mqttConnected = false;
             break;
         } else {
+            if(retryMqtt == 2) {
+                Serial.println("MQTT DNS not resolved, trying IP...");
+                client.disconnect();
+                client.setServer(MQTT_BROKER_IP, 1883);
+            }
             retryMqtt++;
         }
         delay(500);

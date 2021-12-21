@@ -1,12 +1,12 @@
-#include "Adafruit_Si7021.h"
 #include "uMQTTBroker.h"
 #include <../../Config.h>
-#include <Adafruit_SSD1306.h>
-#include <Adafruit_Sensor.h>
 #include <ESP8266WiFi.h>
-#include <OneButton.h>
 #include <SPI.h>
 #include <Wire.h>
+#include "epd1in54_V2.h"
+#include "epdpaint.h"
+#include <GxEPD2_BW.h>
+#include <Fonts/FreeSans12pt7b.h>
 
 /*
  * Your WiFi config here
@@ -24,6 +24,8 @@ float outdoorBatteryPercent = 0;
 float outdoorSensorTempCelsus = 0;
 float outdoorSensorHumidityPercent = 0;
 float outdoorSensorPressurehPa = 0;
+
+GxEPD2_BW<GxEPD2_154_D67, GxEPD2_154_D67::HEIGHT> display(GxEPD2_154_D67(SS, 0, 5, 4)); // CS, DC, RST, Busy  // GDEH0154D67
 
 /*
  * Custom broker class with overwritten callback functions
@@ -85,31 +87,10 @@ public:
 
 myMQTTBroker myBroker;
 
-Adafruit_Si7021 sensor = Adafruit_Si7021();
-
-#define SCREEN_WIDTH 128 // OLED display width, in pixels
-#define SCREEN_HEIGHT 64 // OLED display height, in pixels
-
-// Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
-#define OLED_RESET 0 // Reset pin # (or -1 if sharing Arduino reset pin)
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
-
-OneButton buttonA = OneButton(
-    D3,   // Input pin for the button
-    true, // Button is active LOW
-    true  // Enable internal pull-up resistor
-);
-
-OneButton buttonB = OneButton(
-    D4,   // Input pin for the button
-    true, // Button is active LOW
-    true  // Enable internal pull-up resistor
-);
-
 void startWiFiClient() {
     Serial.println("Connecting to " + (String)ssid);
     WiFi.mode(WIFI_STA);
-    WiFi.hostname("Weather-Station-Indoor");
+    WiFi.hostname("Weather-Station-Indoor2");
     WiFi.setAutoReconnect(true);
     WiFi.persistent(true);
     WiFi.begin(ssid, pass);
@@ -125,51 +106,11 @@ void startWiFiClient() {
 
 void setup() {
     Serial.begin(74880);
-    Serial.println();
+    Serial.println("Starting setup");
 
-    if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Address 0x3D for 128x64
-        Serial.println(F("SSD1306 allocation failed"));
-        for (;;)
-            ; // Don't proceed, loop forever
-    }
-
-    Serial.print("Found model ");
-    switch (sensor.getModel()) {
-    case SI_Engineering_Samples:
-        Serial.print("SI engineering samples");
-        break;
-    case SI_7013:
-        Serial.print("Si7013");
-        break;
-    case SI_7020:
-        Serial.print("Si7020");
-        break;
-    case SI_7021:
-        Serial.print("Si7021");
-        break;
-    case SI_UNKNOWN:
-    default:
-        Serial.print("Unknown");
-    }
-
-    Serial.print(" Rev(");
-    Serial.print(sensor.getRevision());
-    Serial.print(")");
-    Serial.print(" Serial #");
-    Serial.print(sensor.sernum_a, HEX);
-    Serial.println(sensor.sernum_b, HEX);
-
-    display.clearDisplay();
-
-    display.setTextSize(3);
-    display.setTextColor(WHITE);
-    display.setCursor(0, 0);
-
-    display.println("Weather");
-    display.println("Station");
-    display.setTextSize(1);
-    display.println("Booting...");
-    display.display();
+  display.init();
+  display.setRotation(0);
+  display.setFullWindow();
 
     startWiFiClient();
 
@@ -179,13 +120,38 @@ void setup() {
     myBroker.subscribe("#");
 }
 
-int heaterCounter = 0;
-bool enableHeater = false;
+
+void updateHum(float humidity) {
+  char temp_string[] = {'0', '0', '\0'};
+  int16_t tbx, tby;
+  uint16_t tbw, tbh;
+
+  // Zahlen in String schreiben
+  dtostrf(humidity, 2, 0, temp_string);
+
+  // x und y = linke UNTERE Ecke (Grundlinie)
+  uint16_t x = 30;
+  uint16_t y = 112;
+
+  // berechnet die Größe des Fensters
+  display.getTextBounds(temp_string, x, y, &tbx, &tby, &tbw, &tbh);
+  
+  display.setFont(&FreeSans12pt7b);
+  display.setTextColor(GxEPD_BLACK);
+
+  // benötigt die linke OBERE Ecke und Groesse
+  display.setPartialWindow(tbx, tby, tbw, tbh);
+
+  // Ausgabe
+  display.firstPage();
+  do {
+    display.fillScreen(GxEPD_WHITE);
+    display.setCursor(x, y);
+    display.print(temp_string);
+  } while (display.nextPage());
+}
 
 void loop() {
-    buttonA.tick();
-    buttonB.tick();
-
     if (WiFi.status() == WL_CONNECTED) {
         Serial.println("Wifi is connected");
     } else {
@@ -206,29 +172,9 @@ void loop() {
 
     myBroker.publish("broker/uptime", (String)millis());
 
-    display.clearDisplay();
-    display.setTextSize(1);
-    display.setTextColor(WHITE);
-    display.setCursor(0, 0);
-
-    if (buttonA.isLongPressed()) {
-        display.println("This station");
-        String upTimeString;
-        if (millis() > 86400000) {
-            upTimeString = String(millis() / 86400000) + "days";
-        } else {
-            upTimeString = String((millis() / 1000) / 60) + "min";
-        }
-        long lastSeenSeconds = (millis() - outdoorLastSeenMillis) / 1000;
-
-        display.println("Uptime: " + upTimeString);
-        int wifi = 100 - WiFi.RSSI() * -1;
-        display.println("WLN " + String(wifi) + "% Clients " + myBroker.getClientCount());
-        display.println();
-        display.println("Temperature " + String(sensor.readTemperature()) + "C");
-        display.println("Humidity " + String(sensor.readHumidity()) + "%");
-    } else {
-        display.println("Outdoor station 1");
+updateHum(23.0);
+  
+        //display.println("Outdoor station 1");
         String upTimeString;
         if (outdoorUptimeMillis > 86400000) {
             upTimeString = String(outdoorUptimeMillis / 86400000) + "days";
@@ -237,32 +183,17 @@ void loop() {
         }
         long lastSeenSeconds = (millis() - outdoorLastSeenMillis) / 1000;
         if (outdoorLastSeenMillis > 0) {
-            display.println(String(lastSeenSeconds) + "s ago, Up: " + upTimeString);
+            //display.println(String(lastSeenSeconds) + "s ago, Up: " + upTimeString);
         } else {
-            display.println("Not seen yet");
+            //display.println("Not seen yet");
         }
 
         int wifi = 100 - outdoorWifiRssi * -1;
-        display.println("WLN " + String(wifi) + "% Bat " + String((int)outdoorBatteryPercent) + "% " + String(outdoorBatteryVoltage) + "V");
-        display.println();
-        display.println("Temperature " + String(outdoorSensorTempCelsus) + "C");
-        display.println("Humidity " + String(outdoorSensorHumidityPercent) + "%");
-        display.println("Barometer " + String(outdoorSensorPressurehPa) + "hPa");
-    }
-
-    if (++heaterCounter == 30) {
-        enableHeater = !enableHeater;
-        sensor.heater(enableHeater);
-        Serial.print("Heater Enabled State: ");
-        if (sensor.isHeaterEnabled())
-            Serial.println("ENABLED");
-        else
-            Serial.println("DISABLED");
-
-        heaterCounter = 0;
-    }
-
-    display.display();
+        //display.println("WLN " + String(wifi) + "% Bat " + String((int)outdoorBatteryPercent) + "% " + String(outdoorBatteryVoltage) + "V");
+        //display.println();
+        //display.println("Temperature " + String(outdoorSensorTempCelsus) + "C");
+        //display.println("Humidity " + String(outdoorSensorHumidityPercent) + "%");
+        //display.println("Barometer " + String(outdoorSensorPressurehPa) + "hPa");
 
     delay(1000);
 }

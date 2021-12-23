@@ -2,7 +2,7 @@
 An arduino based weather station.
 
 
-<img src="https://github.com/d4rken/arduino-weather-station-v2/blob/main/Images/cube-display.jpg" height="200">    <img src="https://github.com/d4rken/arduino-weather-station-v2/blob/main/Images/stations-frontal.jpg" height="200"><img src="https://github.com/d4rken/arduino-weather-station-v2/raw/main/Images/eink-indoor-station.jpg" height="200">
+<img src="https://github.com/d4rken/arduino-weather-station-v2/blob/main/Images/stations-frontal.jpg" height="200"><img src="https://github.com/d4rken/arduino-weather-station-v2/raw/main/Images/eink-indoor-station.jpg" height="200">
 
 * Both stations need to be in the same WiFi
 * Indoor station runs an MQTT broker

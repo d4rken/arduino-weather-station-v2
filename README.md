@@ -2,7 +2,7 @@
 An arduino based weather station.
 
 
-<img src="https://github.com/d4rken/arduino-weather-station-v2/blob/main/Images/cube-display.jpg" height="200">    <img src="https://github.com/d4rken/arduino-weather-station-v2/blob/main/Images/stations-frontal.jpg" height="200">
+<img src="https://github.com/d4rken/arduino-weather-station-v2/blob/main/Images/cube-display.jpg" height="200">    <img src="https://github.com/d4rken/arduino-weather-station-v2/blob/main/Images/stations-frontal.jpg" height="200"><img src="https://github.com/d4rken/arduino-weather-station-v2/raw/main/Images/eink-indoor-station.jpg" height="200">
 
 * Both stations need to be in the same WiFi
 * Indoor station runs an MQTT broker
@@ -13,11 +13,8 @@ An arduino based weather station.
 
 ## Indoor
 * Wemos D1 mini
-* SS1306 Display
-* Two buttons
+* Waveshare 1.54" e-Paper Display
 * USB powered
-* Long pressing button 1 shows it's own temp/humidity values
-* Button 2 is currently unused
 
 ## Outdoor
 * Wemos D1 mini

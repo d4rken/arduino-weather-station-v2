@@ -189,7 +189,7 @@ void loop() {
 
         printLine("Temp: " + String(outdoorSensorTempCelsus) + "C");
         printLine("Humid: " + String(outdoorSensorHumidityPercent) + "%");
-        printLine("Bero: " + String(outdoorSensorPressurehPa) + "hPa");
+        printLine("Baro: " + String(outdoorSensorPressurehPa) + "hPa");
     }
 
     doDisplay();

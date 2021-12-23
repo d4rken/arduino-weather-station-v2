@@ -1,10 +1,10 @@
+#include <../../Config.h>
 #include <Adafruit_BME280.h>
 #include <Adafruit_Sensor.h>
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include <SPI.h>
 #include <Wire.h>
-#include <../../Config.h>
 
 //for LED status
 #include <Ticker.h>
@@ -49,13 +49,14 @@ void tick() {
 
 void setup() {
     Serial.begin(74880);
+    Serial.println("Setup...");
 
     pinMode(BUILTIN_LED, OUTPUT);
     ticker.attach(0.6, tick);
 
     // Read struct from RTC memory
     if (ESP.rtcUserMemoryRead(0, (uint32_t *)&rtcData, sizeof(rtcData))) {
-         Serial.println("Reading rtcData");
+        Serial.println("Reading rtcData");
         //Serial.println("Read: ");
         //printMemory();
         //Serial.println();
@@ -92,7 +93,9 @@ void setup() {
     pinMode(A0, INPUT);
 }
 
-unsigned int lowest = 9000;
+const int BAT_RAW_EMPTY = 625;
+const int BAT_RAW_FULL = 1024;
+
 char itoaBuf[64];
 char dtostrfBuf[64];
 
@@ -103,13 +106,10 @@ void updateSystemStats() {
     client.publish("weather-station/outdoor1/wifi/rssi", itoa(rssi, itoaBuf, 10));
     Serial.println("RSSI: " + String(rssi));
 
-    unsigned int raw = analogRead(A0);
-    client.publish("weather-station/outdoor1/battery/raw", itoa(raw, itoaBuf, 10));
+    int batteryRaw = analogRead(A0);
+    client.publish("weather-station/outdoor1/battery/raw", itoa(batteryRaw, itoaBuf, 10));
 
-    if (raw < lowest) {
-        lowest = raw;
-    }
-    float batPercent = lowest / 1024.0;
+    float batPercent = (batteryRaw - BAT_RAW_EMPTY) / (BAT_RAW_FULL - BAT_RAW_EMPTY);
     if (batPercent > 0.95) {
         deepSleepMillis = deepSleepMillis * 0.25;
     } else if (batPercent > 0.90) {
@@ -127,10 +127,10 @@ void updateSystemStats() {
     }
     client.publish("weather-station/outdoor1/battery/percent", dtostrf(batPercent * 100, 4, 3, dtostrfBuf));
 
-    float batVoltage = batPercent * 4.1;
+    float batVoltage = (batteryRaw / BAT_RAW_FULL) * 4.1;
     client.publish("weather-station/outdoor1/battery/voltage", dtostrf(batVoltage, 4, 3, dtostrfBuf));
-    Serial.println("Battery: " + String(batVoltage) + "V (raw: " + String(raw) + ")");
-    
+    Serial.println("Battery: " + String(batPercent) + "% (" + String(batVoltage) + "V raw: " + String(batteryRaw) + ")");
+
     client.publish("weather-station/outdoor1/uptime/milliseconds", itoa(rtcDataStruct.millis + deepSleepMillis + millis(), itoaBuf, 10));
 }
 
@@ -151,7 +151,7 @@ void updateSensor() {
     client.publish("weather-station/outdoor1/sensors/pressure/altitude", dtostrf(altitude, 4, 2, dtostrfBuf));
     Serial.println("Approx. Altitude = " + String(altitude) + "m");
 
-    float seaLevelForAltitude = bme.seaLevelForAltitude(174.0,pressure);
+    float seaLevelForAltitude = bme.seaLevelForAltitude(174.0, pressure);
     client.publish("weather-station/outdoor1/sensors/pressure/seaLevelForAltitude", dtostrf(seaLevelForAltitude, 4, 2, dtostrfBuf));
     Serial.println("Sea level for altitude = " + String(seaLevelForAltitude) + "hPa");
 }
@@ -170,7 +170,7 @@ void loop() {
         delay(500);
     }
 
-    if(wifiConnected) {
+    if (wifiConnected) {
         Serial.println("Connected, my IP is:");
         Serial.println(WiFi.localIP());
     } else {
@@ -186,7 +186,7 @@ void loop() {
             mqttConnected = false;
             break;
         } else {
-            if(retryMqtt == 2) {
+            if (retryMqtt == 2) {
                 Serial.println("MQTT DNS not resolved, trying IP...");
                 client.disconnect();
                 client.setServer(MQTT_BROKER_IP, 1883);
@@ -196,7 +196,7 @@ void loop() {
         delay(500);
     }
 
-    if(mqttConnected) {
+    if (mqttConnected) {
         Serial.println("Connected to MQTT Broker");
     } else {
         Serial.println("Failed to connect to MQTT broker");
@@ -213,7 +213,7 @@ void loop() {
     delay(1000);
 
     Serial.println("Data published, waiting for transmission...");
-    client.disconnect(); 
+    client.disconnect();
     espClient.flush();
 
     // wait until connection is closed completely

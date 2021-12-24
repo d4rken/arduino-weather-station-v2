@@ -1,7 +1,7 @@
 #include "uMQTTBroker.h"
 #include <../../Config.h>
 #include <ESP8266WiFi.h>
-#include <gfxfont.h> 
+#include <gfxfont.h>
 #include <Fonts/FreeSans12pt7b.h>
 #include <GxEPD2_BW.h>
 #include <SPI.h>
@@ -169,17 +169,20 @@ void loop() {
     display.fillScreen(GxEPD_WHITE);
     printLine("Outdoor station 1");
 
-    String upTimeString;
-    if (outdoorUptimeMillis > 86400000) {
-        upTimeString = String(outdoorUptimeMillis / 86400000) + "days";
-    } else {
-        upTimeString = String((outdoorUptimeMillis / 1000) / 60) + "min";
-    }
     long lastSeenSeconds = (millis() - outdoorLastSeenMillis) / 1000;
     if (outdoorLastSeenMillis <= 0) {
         printLine("Not seen yet.");
     } else {
-        printLine(String(lastSeenSeconds) + "s ago (Up " + upTimeString + ")");
+        printLine("Seen " + String(lastSeenSeconds) + "s ago");
+
+        String upTimeString;
+        if (outdoorUptimeMillis > 86400000) {
+            upTimeString = String(outdoorUptimeMillis / 86400000) + "days";
+        } else {
+            upTimeString = String((outdoorUptimeMillis / 1000) / 60) + "min";
+        }
+
+        printLine("Uptime " + upTimeString);
 
         int wifi = 100 - outdoorWifiRssi * -1;
         printLine("Wifi: " + String(wifi) + "% (" + String(WiFi.RSSI()) + "%)");

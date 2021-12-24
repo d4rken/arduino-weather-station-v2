@@ -93,8 +93,8 @@ void setup() {
     pinMode(A0, INPUT);
 }
 
-const int BAT_RAW_EMPTY = 625;
-const int BAT_RAW_FULL = 1024;
+const float BAT_RAW_EMPTY = 625.0;
+const float BAT_RAW_FULL = 1024.0;
 
 char itoaBuf[64];
 char dtostrfBuf[64];
@@ -127,9 +127,9 @@ void updateSystemStats() {
     }
     client.publish("weather-station/outdoor1/battery/percent", dtostrf(batPercent * 100, 4, 3, dtostrfBuf));
 
-    float batVoltage = (batteryRaw / BAT_RAW_FULL) * 4.1;
+    float batVoltage = (batteryRaw / BAT_RAW_FULL ) * 4.1;
     client.publish("weather-station/outdoor1/battery/voltage", dtostrf(batVoltage, 4, 3, dtostrfBuf));
-    Serial.println("Battery: " + String(batPercent) + "% (" + String(batVoltage) + "V raw: " + String(batteryRaw) + ")");
+    Serial.println("Battery: " + String(batPercent * 100) + "% (" + String(batVoltage) + "V raw: " + String(batteryRaw) + ")");
 
     client.publish("weather-station/outdoor1/uptime/milliseconds", itoa(rtcDataStruct.millis + deepSleepMillis + millis(), itoaBuf, 10));
 }

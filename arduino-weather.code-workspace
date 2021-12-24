@@ -1,8 +1,8 @@
 {
 	"folders": [
 		{
-			"name": "Indoor",
-			"path": "arduino-weather-indoor"
+			"name": "Display",
+			"path": "arduino-weather-display"
 		},
 		{
 			"name": "Outdoor",
@@ -49,7 +49,9 @@
 			"type_traits": "cpp",
 			"utility": "cpp",
 			"typeinfo": "cpp",
-			"string": "cpp"
+			"string": "cpp",
+			"string_view": "cpp",
+			"ranges": "cpp"
 		}
 	}
 }
